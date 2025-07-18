@@ -56,6 +56,93 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
+        // Add this to your existing React component in index.html
+        // Insert after the existing useEffect hooks
+
+        // Webhook endpoint simulation for n8n integration
+        useEffect(() => {
+            // Listen for automated entries from n8n
+            const handleAutomatedEntry = (event) => {
+                if (event.data && event.data.action === 'addEntry' && event.data.source === 'n8n-automation') {
+                    const newEntry = {
+                        ...event.data.data,
+                        id: Date.now() + Math.random(),
+                        timestamp: new Date().toISOString(),
+                        verified: false, // Auto-entries need verification
+                        enteredBy: 'AI-Assistant'
+                    };
+                    setEntries(prevEntries => [...prevEntries, newEntry]);
+                    // Show notification
+                    console.log('New automated entry added:', newEntry.name);
+                    // Optional: Show browser notification
+                    if (Notification.permission === 'granted') {
+                        new Notification('New Martyr Data Detected', {
+                            body: `${newEntry.name} (${newEntry.ageCategory}) - Requires verification`,
+                            icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🕊️</text></svg>'
+                        });
+                    }
+                }
+            };
+            // Listen for window messages (for n8n integration)
+            window.addEventListener('message', handleAutomatedEntry);
+            // Create webhook endpoint simulation
+            window.sweida_webhook = (data) => {
+                handleAutomatedEntry({ data });
+            };
+            return () => {
+                window.removeEventListener('message', handleAutomatedEntry);
+            };
+        }, []);
+
+        // Request notification permission
+        useEffect(() => {
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        }, []);
+
+        // Enhanced data export with automation metadata
+        const exportAutomationReport = () => {
+            const stats = getDetailedStatistics();
+            const automatedEntries = entries.filter(e => e.enteredBy === 'AI-Assistant');
+            const verifiedAuto = automatedEntries.filter(e => e.verified);
+            const report = [
+                'SWEIDA MARTYRS AUTOMATION REPORT',
+                'Generated: ' + new Date().toLocaleString(),
+                '',
+                '=== AUTOMATION STATISTICS ===',
+                '- Total Auto-Detected: ' + automatedEntries.length,
+                '- Auto-Verified: ' + verifiedAuto.length,
+                '- Pending Auto-Verification: ' + (automatedEntries.length - verifiedAuto.length),
+                '- Success Rate: ' + (automatedEntries.length > 0 ? ((verifiedAuto.length / automatedEntries.length) * 100).toFixed(1) : '0') + '%',
+                '',
+                '=== OVERALL STATISTICS ===',
+                '- Total Documented: ' + stats.total,
+                '- Manual Entries: ' + (stats.total - automatedEntries.length),
+                '- Children (0-12): ' + (stats.byAge['Child (0-12)'] || 0),
+                '- Teenagers (13-17): ' + (stats.byAge['Teenager (13-17)'] || 0),
+                '- Adults (18-59): ' + (stats.byAge['Adult (18-59)'] || 0),
+                '- Elderly (60+): ' + (stats.byAge['Elderly (60+)'] || 0),
+                '',
+                '=== FAMILY IMPACT ===',
+                '- Families with Multiple Casualties: ' + stats.familiesAffected,
+                '- Largest Family Loss: ' + stats.largestFamilyLoss + ' members',
+                '',
+                '=== REGIONAL BREAKDOWN ===',
+                ...Object.entries(stats.byRegion).map(([region, count]) => '- ' + region + ': ' + count),
+                '',
+                '=== RECENT AUTO-DETECTIONS ===',
+                ...automatedEntries.slice(-10).map(entry => '- ' + entry.name + ' (' + entry.ageCategory + ') - ' + entry.region + ' - ' + (entry.verified ? 'VERIFIED' : 'PENDING')),
+                '',
+                'This automated system helps ensure rapid documentation of casualties while maintaining verification standards.'
+            ].join('\n');
+            const dataUri = 'data:text/plain;charset=utf-8,' + encodeURIComponent(report);
+            const exportFileDefaultName = `sweida_automation_report_${new Date().toISOString().split('T')[0]}.txt`;
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        };
         const MartyrsSystem = () => {
             const [currentMode, setCurrentMode] = useState('public');
             const [adminPassword, setAdminPassword] = useState('');
